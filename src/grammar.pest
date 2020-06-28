@@ -1,0 +1,90 @@
+WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
+
+COMMENT = {
+  "//" ~ (!"\n" ~ ANY)*
+  | "/*" ~ (!"*/" ~ ANY) ~ "*/"
+}
+
+script = { SOI ~ block_body ~ EOI }
+block = { "(" ~ block_body ~ ")" }
+block_body = _{ stmt* ~ seq }
+
+stmt = { let_stmt }
+let_stmt = { kw_let ~ ident ~ fn_args* ~ "=" ~ expr ~ ";" }
+
+fn_args = {
+  "(" ~ ")"
+  | "(" ~ fn_arg ~ ")"
+}
+fn_arg = {
+  ident ~ (":" ~ expr)?
+}
+
+// sequences and expressions
+seq = { expr ~ ("," ~ expr)* }
+expr = { expr_call ~ (operator ~ expr_call)* }
+expr_call = { expr_atom ~ ("(" ~ seq ~ ")")*  }
+expr_atom = _{
+  object | array | block | string | number | ident
+}
+
+// objects
+object = {
+  "{" ~ "}"
+  | "{" ~ object_entry ~ ("," ~ object_entry)* ~ ","? ~ "}"
+}
+object_entry = { object_key ~ ":" ~ expr }
+object_key = { string | ident }
+
+// arrays
+array = {
+  "[" ~ "]"
+  | "[" ~ expr ~ ("," ~ expr)* ~ ","? ~ "]"
+}
+
+// strings
+string = ${ "\"" ~ string_content ~ "\"" }
+string_content = @{ string_char* }
+string_char = {
+    !("\"" | "\\") ~ '\u{20}'..'\u{10FFFF}'
+    | "\\" ~ ("\"" | "\\" | "/" | "b" | "f" | "n" | "r" | "t")
+    | "\\" ~ ("u" ~ ASCII_HEX_DIGIT{4})
+}
+
+// numbers
+number = @{
+    "-"?
+    ~ ("0" | ASCII_NONZERO_DIGIT ~ ASCII_DIGIT*)
+    ~ ("." ~ ASCII_DIGIT*)?
+    ~ (^"e" ~ ("+" | "-")? ~ ASCII_DIGIT+)?
+}
+
+// identifiers
+ident = @{ !KEYWORD ~ ident_first_char ~ ident_char* }
+ident_first_char = { ASCII_ALPHA | "_" }
+ident_char = { ASCII_ALPHANUMERIC | "_" }
+
+// operators
+operator = _{ pipe | add | sub | mul | div | eq | ne | le | ge | lt | gt }
+pipe = @{ "|" }
+eq  = @{ "==" }
+ne  = @{ "!=" }
+le  = @{ "<=" }
+ge  = @{ ">=" }
+lt  = @{ "<" }
+gt  = @{ ">" }
+add = @{ "+" }
+sub = @{ "-" }
+mul = @{ "*" }
+div = @{ "/" }
+
+// keywords
+KEYWORD = { kw_let | kw_match | kw_case | kw_if | kw_elif | kw_else | kw_then | kw_end }
+kw_let = @{ "let" ~ !ident_char }
+kw_match = @{ "match" ~ !ident_char }
+kw_case = @{ "case" ~ !ident_char }
+kw_if = @{ "if" ~ !ident_char }
+kw_elif = @{ "elif" ~ !ident_char }
+kw_else = @{ "else" ~ !ident_char }
+kw_then = @{ "then" ~ !ident_char }
+kw_end = @{ "end" ~ !ident_char }
