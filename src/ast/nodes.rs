@@ -103,6 +103,15 @@ node! {
     }
 }
 
+impl FnArg {
+    pub fn from_ident(ident: Ident) -> FnArg {
+        FnArg {
+            name: ident,
+            ty: None,
+        }
+    }
+}
+
 node! {
     struct Seq = Rule::seq {
         exprs: Vec<Expr>,
@@ -123,6 +132,7 @@ pub enum Expr {
     NullPropagate(Box<Expr>),
     Object(ObjectExpr),
     Array(ArrayExpr),
+    Lambda(LambdaExpr),
     Block(Box<Block>),
     String(StringExpr),
     Number(NumberExpr),
@@ -162,6 +172,8 @@ impl Node for Expr {
                         Expr::Object(atom)
                     } else if let Some(atom) = <Option<ArrayExpr>>::parse_many(&mut pairs)? {
                         Expr::Array(atom)
+                    } else if let Some(atom) = <Option<LambdaExpr>>::parse_many(&mut pairs)? {
+                        Expr::Lambda(atom)
                     } else if let Some(atom) = <Option<Block>>::parse_many(&mut pairs)? {
                         Expr::Block(Box::new(atom))
                     } else if let Some(atom) = <Option<StringExpr>>::parse_many(&mut pairs)? {
@@ -261,6 +273,8 @@ impl Evaluate for Expr {
                     .map(|item| item.evaluate_value(scope.clone()))
                     .collect::<ScriptResult<_>>()?,
             ),
+
+            Expr::Lambda(lambda) => lambda.evaluate_value(scope.clone())?,
 
             Expr::Block(block) => block.evaluate_value(scope.clone())?,
 
@@ -407,6 +421,32 @@ impl Evaluate for ObjectKey {
 node! {
     struct ArrayExpr = Rule::array {
         items: Vec<Expr>,
+    }
+}
+
+node! {
+    struct LambdaExpr = Rule::lambda {
+        args: Vec<Ident>,
+        expr: Box<Expr>,
+    }
+}
+
+impl Evaluate for LambdaExpr {
+    fn evaluate(&self, scope: Scope) -> ScriptResult<(Scope, Value)> {
+        let mut args: Vec<_> = self.args.iter().collect();
+
+        let arg = args.pop().unwrap();
+        let mut func = Function::new_from_expr(
+            &scope,
+            Some(FnArg::from_ident(arg.clone())),
+            *self.expr.clone(),
+        );
+
+        while let Some(arg) = args.pop() {
+            func = Function::new_nested(&scope, Some(FnArg::from_ident(arg.clone())), func);
+        }
+
+        Ok((scope, func.into()))
     }
 }
 

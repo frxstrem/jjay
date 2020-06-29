@@ -28,8 +28,11 @@ path_segment = { "." ~ ident | "."? ~ "[" ~ expr ~ "]" }
 null_propagation = @{ "?" }
 args = { "(" ~ expr? ~ ")" }
 expr_atom = _{
-  object | array | block | string | number | ident
+  object | array | lambda | block | string | number | ident
 }
+
+// lambda functions
+lambda = { "(" ~ (ident ~ "=>")+ ~ expr ~ ")" }
 
 // objects
 object = {

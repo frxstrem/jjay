@@ -7,7 +7,7 @@ use crate::error::*;
 
 #[derive(Clone, Debug)]
 pub enum Function {
-    Code(Scope, Option<FnArg>, Expr),
+    Code(Scope, Option<FnArg>, Box<Expr>),
     Nested(Scope, Option<FnArg>, Arc<Function>),
     Native(NativeFunction),
 }
@@ -34,7 +34,7 @@ impl Function {
     }
 
     pub fn new_from_expr(scope: &Scope, arg: Option<FnArg>, expr: Expr) -> Function {
-        Function::Code(scope.inherit(), arg, expr)
+        Function::Code(scope.inherit(), arg, Box::new(expr))
     }
 
     pub fn new_nested(scope: &Scope, arg: Option<FnArg>, nested: Function) -> Function {

@@ -7,7 +7,7 @@
 - [x] Compatible with existing JSON data.
 - [x] Single-line comments (`//`) and block comments (`/* ... */`)
 - [x] Variables
-- [x] Functions
+- [x] Functions (including lambda functions)
 - [x] Numeric operators (`+`, `-`, `*` and `/`)
 - [ ] Equality operators (`==`, `!=`, `<`, `<=`, `>`, `>=`) **[not implemented]**
 - [x] Path access (`var.x.y`, `var["x"].y`)
@@ -76,13 +76,6 @@ let g(x)(y) = x + x * y;
 f(1) + g(2)(3) // = 10
 ```
 
-Lambda functions are not supported, but functions can be declared inside of blocks:
-
-```
-let apply(func)(arg) = func(arg);
-(let f(x) = x * x; f)(4) // = 16
-```
-
 A function inherits the scope outside it, but variables within it may shadow variables in the outer
 scope.
 
@@ -90,6 +83,22 @@ scope.
 let x = 3;
 let f(x) = x + 3;
 f(5) // = 8
+```
+
+### Lambda function
+
+A lambda function is declared with the syntax:
+
+```
+(x => expr)
+```
+
+where `x` is the argument and `expr` is the expression body of the lambda function. Note that the surrounding parentheses are mandatory.
+
+For simplicity, chained lambda functions only require the outermost set of parentheses:
+
+```
+(x => y => z => x + y + z)
 ```
 
 ### Binary operators
