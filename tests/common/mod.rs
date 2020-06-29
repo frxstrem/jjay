@@ -1,15 +1,40 @@
+#![allow(unused, dead_code)]
+
 use jjay::*;
 
-#[allow(unused)]
 macro_rules! make_test {
+    ($(#[$meta:meta])* $name:ident: $script:literal => $expected:literal) => {
+        #[test]
+        $(#[$meta])*
+        fn $name() {
+            $crate::common::run_script_test($script, $expected)
+        }
+    }
+}
+
+macro_rules! make_fail_test {
+    ($(#[$meta:meta])* $name:ident: $script:literal) => {
+        #[test]
+        $(#[$meta])*
+        fn $name() {
+            $crate::common::run_script_fail_test($script)
+        }
+    }
+}
+
+macro_rules! make_json_test {
     ($(#[$meta:meta])* $name:ident, $file:literal, $expected:ident) => {
         ::paste::item! {
-            make_test!(@meta $expected
+            make_json_test!(@meta $expected
                 #[test]
-                #[allow(non_snake_case)]
+                #[allow(non_snake_case, non_upper_case_globals, dead_code)]
                 $(#[$meta])*
                 fn [< json_ $name >]() {
-                    $crate::common::run_test(include_bytes!(concat!("json_data/", $file)), $crate::common::TestResult::$expected);
+                    pub const y: Option<bool> = Some(true);
+                    pub const n: Option<bool> = Some(false);
+                    pub const i: Option<bool> = None;
+
+                    $crate::common::run_json_test(include_bytes!(concat!("json_data/", $file)), $expected);
                 }
             );
         }
@@ -20,32 +45,15 @@ macro_rules! make_test {
     (@meta i $($tt:tt)*) => { #[cfg_attr(not(feature = "i-tests"), ignore)] $($tt)* };
 }
 
-#[derive(Copy, Clone, Debug)]
-pub enum TestResult {
-    Success,
-    Failure,
-    Indeterminate,
-}
+#[allow(unused)]
 
-#[allow(non_upper_case_globals, dead_code)]
-impl TestResult {
-    pub const y: TestResult = TestResult::Success;
-    pub const n: TestResult = TestResult::Failure;
-    pub const i: TestResult = TestResult::Indeterminate;
-}
-
-impl TestResult {
-    fn success_or_indeterminate(self) -> bool {
-        matches!(self, TestResult::Success | TestResult::Indeterminate)
-    }
-}
-
-pub fn run_test(data: &[u8], expected: TestResult) {
-    if expected.success_or_indeterminate() {
-        match run_test_internal(data) {
+pub fn run_json_test(data: &[u8], expected: Option<bool>) {
+    let source = String::from_utf8(data.to_vec()).unwrap();
+    if expected.unwrap_or(true) {
+        match run_test(&source) {
             Ok(value) => {
                 let expected: serde_json::Value = serde_json::from_slice(data).unwrap();
-                if !compare(&value, &expected) {
+                if !compare_json_value(&value, &expected) {
                     eprintln!("expected:");
                     eprintln!("{:#?}", expected);
                     eprintln!("got:");
@@ -60,20 +68,46 @@ pub fn run_test(data: &[u8], expected: TestResult) {
             }
         }
     } else {
-        match run_test_internal(data) {
+        match run_test(&source) {
             Ok(_) => panic!("expected failure"),
             Err(_) => (/* OK */),
         }
     }
 }
 
-fn run_test_internal(data: &[u8]) -> ScriptResult<Value> {
-    let source = String::from_utf8(data.to_vec()).unwrap();
+pub fn run_script_test(source: &str, expected: &str) {
+    match run_test(source) {
+        Ok(value) => {
+            let expected: serde_json::Value = serde_json::from_str(expected).unwrap();
+            if !compare_json_value(&value, &expected) {
+                eprintln!("expected:");
+                eprintln!("{:#?}", expected);
+                eprintln!("got:");
+                eprintln!("{:#?}", value);
+                panic!("assertion failed");
+            }
+        }
+
+        Err(err) => {
+            eprintln!("{}", err);
+            panic!("test failure");
+        }
+    }
+}
+
+pub fn run_script_fail_test(source: &str) {
+    match run_test(&source) {
+        Ok(_) => panic!("expected failure"),
+        Err(_) => (/* OK */),
+    }
+}
+
+fn run_test(source: &str) -> ScriptResult<Value> {
     let value = jjay::run_script(source)?;
     Ok(value)
 }
 
-fn compare(actual: &Value, expected: &serde_json::Value) -> bool {
+fn compare_json_value(actual: &Value, expected: &serde_json::Value) -> bool {
     use std::collections::HashSet;
 
     match (actual, expected) {
@@ -85,7 +119,7 @@ fn compare(actual: &Value, expected: &serde_json::Value) -> bool {
             }
 
             for key in actual_keys {
-                if !compare(&actual_map[key], &expected_map[key]) {
+                if !compare_json_value(&actual_map[key], &expected_map[key]) {
                     return false;
                 }
             }
@@ -98,7 +132,7 @@ fn compare(actual: &Value, expected: &serde_json::Value) -> bool {
                 && actual_items
                     .iter()
                     .zip(expected_items.iter())
-                    .all(|(actual, expected)| compare(actual, expected))
+                    .all(|(actual, expected)| compare_json_value(actual, expected))
         }
 
         (Value::String(actual_value), serde_json::Value::String(expected_value)) => {
@@ -114,7 +148,7 @@ fn compare(actual: &Value, expected: &serde_json::Value) -> bool {
             return float_cmp::ApproxEq::approx_eq(
                 *actual_value,
                 expected_value,
-                float_cmp::F64Margin::zero().ulps(8),
+                float_cmp::F64Margin::zero(),
             );
         }
 
