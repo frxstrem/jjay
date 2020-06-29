@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::fmt::{self, Debug};
+use std::fmt::Debug;
 
 use super::{Function, Value};
 use crate::error::*;
@@ -40,7 +40,7 @@ impl Scope {
         }
     }
 
-    pub fn set(mut self, name: &str, value: impl Into<Value>) -> ScriptResult<Scope> {
+    pub fn set(self, name: &str, value: impl Into<Value>) -> ScriptResult<Scope> {
         if self.values.contains_key(name) {
             return Err(ScriptError::VariableAlreadyExists(name.to_string()));
         }
@@ -53,7 +53,7 @@ impl Scope {
         self
     }
 
-    pub fn extend(mut self, other: Scope) -> Scope {
+    pub fn extend(self, other: Scope) -> Scope {
         let mut scope = self;
         for (name, value) in other.values {
             scope = scope.set_nofail(&name, value);

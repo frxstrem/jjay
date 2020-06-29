@@ -1,7 +1,6 @@
 use pest::iterators::{Pair, Pairs};
-use std::cell::RefCell;
 
-use super::{Node, Rule};
+use super::Rule;
 use crate::error::*;
 
 pub fn check_rule(pair: &Pair<Rule>, rule: &Rule) -> ParseResult<()> {

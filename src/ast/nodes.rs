@@ -1,6 +1,5 @@
 use pest::iterators::Pair;
 use std::collections::BTreeMap;
-use std::collections::VecDeque;
 
 use super::{Node, Rule};
 use crate::ast::helpers;
@@ -240,8 +239,6 @@ impl Evaluate for Expr {
             Expr::String(string) => string.decode().map(Value::String)?,
 
             Expr::Ident(ident) => scope.get(&ident.value)?,
-
-            _ => todo!(),
         };
         Ok((scope, value))
     }

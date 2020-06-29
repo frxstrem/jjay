@@ -2,11 +2,6 @@ mod func;
 mod scope;
 mod value;
 
-use std::collections::HashMap;
-use std::fmt::{self, Debug, Display};
-use std::sync::Arc;
-
-use crate::ast::{Block, FnArg};
 use crate::error::*;
 
 pub use self::func::Function;
