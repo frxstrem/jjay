@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::fmt::{self, Debug, Display};
 
-use super::{Function, Scope};
+use super::Function;
 use crate::error::*;
 
 #[derive(Clone, Debug)]
@@ -47,9 +47,9 @@ impl Value {
         Value::Null
     }
 
-    pub fn invoke(&self, scope: Scope, arg: Value) -> ScriptResult<Value> {
+    pub fn invoke(&self, arg: Value) -> ScriptResult<Value> {
         match self {
-            Value::Function(func) => func.invoke(scope, arg),
+            Value::Function(func) => func.invoke(arg),
             value @ _ => Err(ScriptError::NotCallable(value.value_type())),
         }
     }

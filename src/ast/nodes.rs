@@ -73,10 +73,10 @@ impl Evaluate for LetStmt {
             let mut args: Vec<_> = self.args.iter().collect();
 
             let arg = args.pop().unwrap();
-            let mut func = Function::new_from_expr(arg.arg.clone(), self.value.clone());
+            let mut func = Function::new_from_expr(&scope, arg.arg.clone(), self.value.clone());
 
             while let Some(arg) = args.pop() {
-                func = Function::new_nested(arg.arg.clone(), func);
+                func = Function::new_nested(&scope, arg.arg.clone(), func);
             }
 
             func.into()
@@ -197,8 +197,8 @@ impl Evaluate for Expr {
                 let func_name = op.func_name();
 
                 let func = scope.get(func_name)?;
-                let func = evaluate_func_call(scope.clone(), func, lhs)?;
-                evaluate_func_call(scope.clone(), func, rhs)?
+                let func = evaluate_func_call(func, lhs)?;
+                evaluate_func_call(func, rhs)?
             }
 
             Expr::Call(func, args) => {
@@ -209,7 +209,7 @@ impl Evaluate for Expr {
                     .map(|expr| expr.evaluate_value(scope.clone()))
                     .transpose()?
                     .unwrap_or(Value::Null);
-                evaluate_func_call(scope.clone(), func, arg)?
+                evaluate_func_call(func, arg)?
             }
 
             Expr::Object(object) => {
@@ -244,8 +244,8 @@ impl Evaluate for Expr {
     }
 }
 
-fn evaluate_func_call(scope: Scope, func: Value, arg: Value) -> ScriptResult<Value> {
-    let value = func.invoke(scope.clone(), arg)?;
+fn evaluate_func_call(func: Value, arg: Value) -> ScriptResult<Value> {
+    let value = func.invoke(arg)?;
     Ok(value)
 }
 

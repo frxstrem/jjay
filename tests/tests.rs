@@ -15,6 +15,6 @@ make_fail_test!(empty_script: "");
 make_fail_test!(no_overload: "let x = 3; let x = 3; let f(x) = x; let f(x) = x; null");
 make_test!(overload_in_block: "let x = 3; (let x = 4; x) + x" => "7");
 make_test!(overload_in_func: "let x = 3; let f(y) = (let x = 4; x + y); f(1)" => "5");
-make_test!(func_in_func: "let f(x) = (let g(y) = [x, y]; g); f(1)(2)" => "[2, 1]");
+make_test!(func_in_func: "let f(x) = (let g(y) = [x, y]; g); f(1)(2)" => "[1, 2]");
 make_test!(func_defsite_scope: "let f = (let y = 3; let f() = y; f); f()" => "3");
 make_fail_test!(func_no_callsite_scope: "let f(x) = y; let y = 3; f()");

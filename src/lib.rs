@@ -14,7 +14,7 @@ pub use crate::eval::Scope;
 pub use crate::eval::Value;
 
 pub fn run_script(source: impl AsRef<str>) -> ScriptResult<Value> {
-    let scope = Scope::new_default()?;
+    let scope = Scope::new_default();
     run_script_with(source, scope)
 }
 

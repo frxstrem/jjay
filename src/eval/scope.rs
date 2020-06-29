@@ -1,43 +1,54 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::sync::Arc;
 
 use super::{Function, Value};
 use crate::error::*;
 
 #[derive(Clone, Debug)]
 pub struct Scope {
+    parent: Option<Arc<Scope>>,
     values: HashMap<String, Value>,
 }
 
 impl Scope {
     pub fn new_empty() -> Scope {
         Scope {
+            parent: None,
             values: HashMap::new(),
         }
     }
 
-    pub fn new_default() -> ScriptResult<Scope> {
-        let scope = Scope::new_empty()
-            .set("true", Value::Boolean(true))?
-            .set("false", Value::Boolean(false))?
-            .set("null", Value::Null)?
-            .set("/pipe", Function::new2(default_fns::pipe))?
-            .set("/add", Function::new2(default_fns::add))?
-            .set("/sub", Function::new2(default_fns::sub))?
-            .set("/mul", Function::new2(default_fns::mul))?
-            .set("/div", Function::new2(default_fns::div))?
-            .set("/eq", Function::new2(default_fns::eq))?
-            .set("/ne", Function::new2(default_fns::ne))?
-            .set("/ge", Function::new2(default_fns::ge))?
-            .set("/le", Function::new2(default_fns::le))?
-            .set("/gt", Function::new2(default_fns::gt))?
-            .set("/lt", Function::new2(default_fns::lt))?;
-        Ok(scope)
+    pub fn new_default() -> Scope {
+        Scope::new_empty()
+            .set_nofail("true", Value::Boolean(true))
+            .set_nofail("false", Value::Boolean(false))
+            .set_nofail("null", Value::Null)
+            .set_nofail("/pipe", Function::new2(default_fns::pipe))
+            .set_nofail("/add", Function::new2(default_fns::add))
+            .set_nofail("/sub", Function::new2(default_fns::sub))
+            .set_nofail("/mul", Function::new2(default_fns::mul))
+            .set_nofail("/div", Function::new2(default_fns::div))
+            .set_nofail("/eq", Function::new2(default_fns::eq))
+            .set_nofail("/ne", Function::new2(default_fns::ne))
+            .set_nofail("/ge", Function::new2(default_fns::ge))
+            .set_nofail("/le", Function::new2(default_fns::le))
+            .set_nofail("/gt", Function::new2(default_fns::gt))
+            .set_nofail("/lt", Function::new2(default_fns::lt))
+    }
+
+    pub fn inherit(&self) -> Scope {
+        Scope {
+            parent: Some(Arc::new(self.clone())),
+            values: HashMap::new(),
+        }
     }
 
     pub fn get(&self, name: &str) -> ScriptResult<Value> {
         if let Some(value) = self.values.get(name) {
             Ok(value.clone())
+        } else if let Some(parent) = &self.parent {
+            parent.get(name)
         } else {
             Err(ScriptError::VariableNotFound(name.to_string()))
         }
@@ -68,11 +79,11 @@ impl Scope {
 mod default_fns {
     use super::*;
 
-    pub(crate) fn pipe(scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
-        rhs.invoke(scope, lhs)
+    pub(crate) fn pipe(lhs: Value, rhs: Value) -> ScriptResult<Value> {
+        rhs.invoke(lhs)
     }
 
-    pub(crate) fn add(_scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
+    pub(crate) fn add(lhs: Value, rhs: Value) -> ScriptResult<Value> {
         Ok(match (&lhs, &rhs) {
             (Value::Number(x), Value::Number(y)) => Value::Number(x + y),
 
@@ -86,7 +97,7 @@ mod default_fns {
         })
     }
 
-    pub(crate) fn sub(_scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
+    pub(crate) fn sub(lhs: Value, rhs: Value) -> ScriptResult<Value> {
         Ok(match (&lhs, &rhs) {
             (Value::Number(x), Value::Number(y)) => Value::Number(x - y), // TODO: checked
 
@@ -100,7 +111,7 @@ mod default_fns {
         })
     }
 
-    pub(crate) fn mul(_scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
+    pub(crate) fn mul(lhs: Value, rhs: Value) -> ScriptResult<Value> {
         Ok(match (&lhs, &rhs) {
             (Value::Number(x), Value::Number(y)) => Value::Number(x * y), // TODO: checked
 
@@ -114,7 +125,7 @@ mod default_fns {
         })
     }
 
-    pub(crate) fn div(_scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
+    pub(crate) fn div(lhs: Value, rhs: Value) -> ScriptResult<Value> {
         Ok(match (&lhs, &rhs) {
             (Value::Number(x), Value::Number(y)) => Value::Number(x / y), // TODO: checked
 
@@ -128,7 +139,7 @@ mod default_fns {
         })
     }
 
-    pub(crate) fn eq(_scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
+    pub(crate) fn eq(lhs: Value, rhs: Value) -> ScriptResult<Value> {
         Err(script_error!(
             "comparison not implement for types: {:?}, {:?}",
             lhs.value_type(),
@@ -136,7 +147,7 @@ mod default_fns {
         ))
     }
 
-    pub(crate) fn ne(_scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
+    pub(crate) fn ne(lhs: Value, rhs: Value) -> ScriptResult<Value> {
         Err(script_error!(
             "comparison not implement for types: {:?}, {:?}",
             lhs.value_type(),
@@ -144,7 +155,7 @@ mod default_fns {
         ))
     }
 
-    pub(crate) fn ge(_scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
+    pub(crate) fn ge(lhs: Value, rhs: Value) -> ScriptResult<Value> {
         Err(script_error!(
             "comparison not implement for types: {:?}, {:?}",
             lhs.value_type(),
@@ -152,7 +163,7 @@ mod default_fns {
         ))
     }
 
-    pub(crate) fn le(_scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
+    pub(crate) fn le(lhs: Value, rhs: Value) -> ScriptResult<Value> {
         Err(script_error!(
             "comparison not implement for types: {:?}, {:?}",
             lhs.value_type(),
@@ -160,7 +171,7 @@ mod default_fns {
         ))
     }
 
-    pub(crate) fn gt(_scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
+    pub(crate) fn gt(lhs: Value, rhs: Value) -> ScriptResult<Value> {
         Err(script_error!(
             "comparison not implement for types: {:?}, {:?}",
             lhs.value_type(),
@@ -168,7 +179,7 @@ mod default_fns {
         ))
     }
 
-    pub(crate) fn lt(_scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
+    pub(crate) fn lt(lhs: Value, rhs: Value) -> ScriptResult<Value> {
         Err(script_error!(
             "comparison not implement for types: {:?}, {:?}",
             lhs.value_type(),
