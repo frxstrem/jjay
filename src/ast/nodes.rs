@@ -199,8 +199,8 @@ impl Evaluate for Expr {
                 let func_name = op.func_name();
 
                 let func = scope.get(func_name)?;
-                let func = evaluate_func_call(func, lhs)?;
-                evaluate_func_call(func, rhs)?
+                let func = evaluate_func_call(scope.clone(), func, lhs)?;
+                evaluate_func_call(scope.clone(), func, rhs)?
             }
 
             Expr::Call(func, args) => {
@@ -211,7 +211,7 @@ impl Evaluate for Expr {
                     .map(|expr| expr.evaluate_value(scope.clone()))
                     .transpose()?
                     .unwrap_or(Value::Null);
-                evaluate_func_call(func, arg)?
+                evaluate_func_call(scope.clone(), func, arg)?
             }
 
             Expr::Object(object) => {
@@ -246,8 +246,8 @@ impl Evaluate for Expr {
     }
 }
 
-fn evaluate_func_call(func: Value, arg: Value) -> ScriptResult<Value> {
-    let value = func.invoke(arg)?;
+fn evaluate_func_call(call_scope: Scope, func: Value, arg: Value) -> ScriptResult<Value> {
+    let value = func.invoke(call_scope, arg)?;
     Ok(value)
 }
 

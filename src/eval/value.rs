@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::fmt::{self, Debug, Display};
 
-use super::Function;
+use super::{Function, Scope};
 use crate::error::*;
 
 #[derive(Clone, Debug)]
@@ -47,9 +47,9 @@ impl Value {
         Value::Null
     }
 
-    pub fn invoke(&self, arg: Value) -> ScriptResult<Value> {
+    pub fn invoke(&self, scope: Scope, arg: Value) -> ScriptResult<Value> {
         match self {
-            Value::Function(func) => func.invoke(arg),
+            Value::Function(func) => func.invoke(scope, arg),
             value @ _ => Err(ScriptError::NotCallable(value.value_type())),
         }
     }
@@ -66,33 +66,45 @@ impl Value {
         }
     }
 
-    pub fn to_json(&self) -> ScriptResult<serde_json::Value> {
+    fn to_json_opt(&self) -> ScriptResult<Option<serde_json::Value>> {
         match self {
-            Value::Object(map) => Ok(serde_json::Value::Object(
+            Value::Object(map) => Ok(Some(serde_json::Value::Object(
                 map.iter()
-                    .map(|(key, value)| Ok((key.clone(), value.to_json()?)))
+                    .map(|(key, value)| Ok((key.clone(), value.to_json_opt()?)))
+                    .filter_map(|entry| match entry {
+                        Ok((key, Some(value))) => Some(Ok((key, value))),
+                        Ok((_, None)) => None,
+                        Err(err) => Some(Err(err)),
+                    })
                     .collect::<ScriptResult<_>>()?,
-            )),
+            ))),
 
-            Value::Array(array) => Ok(serde_json::Value::Array(
+            Value::Array(array) => Ok(Some(serde_json::Value::Array(
                 array
                     .iter()
-                    .map(|value| value.to_json())
+                    .map(|value| value.to_json_opt())
+                    .filter_map(|value| value.transpose())
                     .collect::<ScriptResult<_>>()?,
-            )),
+            ))),
 
-            Value::Number(number) => Ok(serde_json::Number::from_f64(*number)
-                .map(serde_json::Value::Number)
-                .unwrap_or(serde_json::Value::Null)), // TODO: handle out-of-range numbers properly...
+            Value::Number(number) => Ok(Some(
+                serde_json::Number::from_f64(*number)
+                    .map(serde_json::Value::Number)
+                    .unwrap_or(serde_json::Value::Null),
+            )), // TODO: handle out-of-range numbers properly...
 
-            Value::String(string) => Ok(serde_json::Value::String(string.clone())),
+            Value::String(string) => Ok(Some(serde_json::Value::String(string.clone()))),
 
-            Value::Boolean(b) => Ok(serde_json::Value::Bool(*b)),
+            Value::Boolean(b) => Ok(Some(serde_json::Value::Bool(*b))),
 
-            Value::Null => Ok(serde_json::Value::Null),
+            Value::Null => Ok(Some(serde_json::Value::Null)),
 
-            value @ _ => Err(ScriptError::NotSerializable(value.value_type())),
+            Value::Function(..) => Ok(None),
         }
+    }
+
+    pub fn to_json(&self) -> ScriptResult<serde_json::Value> {
+        Ok(self.to_json_opt()?.unwrap_or(serde_json::Value::Null))
     }
 
     pub fn write_to<W: std::io::Write>(&self, mut writer: W) -> ScriptResult<()> {

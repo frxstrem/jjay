@@ -12,7 +12,9 @@ make_test!(arithmetic: "1 + 2 * 2 * 3 / 4 * 5 - 6 + 7" => "17");
 make_test!(func_noargs1: r"let f() = 3; f()" => "3");
 make_test!(func_noargs2: r"let f() = 3; f(1)" => "3");
 make_test!(func_noargs3: r"let f(x) = x; f()" => "null");
-
+make_fail_test!(no_same_arg_name: "let f(x)(x) = 3; f(1)(2)");
+make_fail_test!(#[ignore] no_same_arg_name_unused: "let f(x)(x) = 3; null");
+make_test!(allow_same_arg_name_nested_func: "let f(x) = (let g(x) = x; g); f(1)(2)" => "2");
 make_fail_test!(empty_script: "");
 make_fail_test!(no_overload: "let x = 3; let x = 3; let f(x) = x; let f(x) = x; null");
 make_test!(overload_in_block: "let x = 3; (let x = 4; x) + x" => "7");
@@ -20,3 +22,6 @@ make_test!(overload_in_func: "let x = 3; let f(y) = (let x = 4; x + y); f(1)" =>
 make_test!(func_in_func: "let f(x) = (let g(y) = [x, y]; g); f(1)(2)" => "[1, 2]");
 make_test!(func_defsite_scope: "let f = (let y = 3; let f() = y; f); f()" => "3");
 make_fail_test!(func_no_callsite_scope: "let f(x) = y; let y = 3; f()");
+make_test!(scope_func_nested1: "let x = 3; (let y = 4; scope())" => r#" {"true":true,"false":false,"null":null,"x":3,"y":4} "#);
+make_test!(scope_func_nested2: "let x = 3; (let y = 4; local_scope())" => r#" {"y":4} "#);
+make_test!(scope_func_block: "let x = 3; let s = local_scope(); (let y = 4; s)" => r#" {"x":3} "#);

@@ -34,7 +34,6 @@ pub type ScriptResult<T> = Result<T, ScriptError>;
 pub enum ScriptError {
     VariableNotFound(String),
     VariableAlreadyExists(String),
-    NotSerializable(ValueType),
     NotStringConvertible(ValueType),
     NotCallable(ValueType),
 
@@ -49,9 +48,6 @@ impl Display for ScriptError {
             ScriptError::VariableNotFound(name) => write!(fmt, "Variable not found: {}", name),
             ScriptError::VariableAlreadyExists(name) => {
                 write!(fmt, "Variable already exists: {}", name)
-            }
-            ScriptError::NotSerializable(value_type) => {
-                write!(fmt, "Cannot serialize {} as JSON", value_type)
             }
             ScriptError::NotStringConvertible(value_type) => {
                 write!(fmt, "Cannot convert {} to string", value_type)

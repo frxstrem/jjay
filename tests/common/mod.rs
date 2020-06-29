@@ -102,16 +102,16 @@ pub fn run_script_fail_test(source: &str) {
     }
 }
 
-fn run_test(source: &str) -> ScriptResult<Value> {
-    let value = jjay::run_script(source)?;
-    Ok(value)
+fn run_test(source: &str) -> ScriptResult<serde_json::Value> {
+    jjay::run_script(source).and_then(|value| value.to_json())
 }
 
-fn compare_json_value(actual: &Value, expected: &serde_json::Value) -> bool {
+fn compare_json_value(actual: &serde_json::Value, expected: &serde_json::Value) -> bool {
+    use serde_json::Value;
     use std::collections::HashSet;
 
     match (actual, expected) {
-        (Value::Object(actual_map), serde_json::Value::Object(expected_map)) => {
+        (Value::Object(actual_map), Value::Object(expected_map)) => {
             let actual_keys: HashSet<&String> = actual_map.keys().collect();
             let expected_keys: HashSet<&String> = expected_map.keys().collect();
             if actual_keys != expected_keys {
@@ -127,7 +127,7 @@ fn compare_json_value(actual: &Value, expected: &serde_json::Value) -> bool {
             return true;
         }
 
-        (Value::Array(actual_items), serde_json::Value::Array(expected_items)) => {
+        (Value::Array(actual_items), Value::Array(expected_items)) => {
             actual_items.len() == expected_items.len()
                 && actual_items
                     .iter()
@@ -135,28 +135,30 @@ fn compare_json_value(actual: &Value, expected: &serde_json::Value) -> bool {
                     .all(|(actual, expected)| compare_json_value(actual, expected))
         }
 
-        (Value::String(actual_value), serde_json::Value::String(expected_value)) => {
+        (Value::String(actual_value), Value::String(expected_value)) => {
             actual_value == expected_value
         }
 
-        (Value::Number(actual_value), serde_json::Value::Number(expected_value)) => {
+        (Value::Number(actual_value), Value::Number(expected_value)) => {
+            let actual_value = match expected_value.as_f64() {
+                Some(value) => value,
+                None => return false,
+            };
             let expected_value = match expected_value.as_f64() {
                 Some(value) => value,
                 None => return false,
             };
 
             return float_cmp::ApproxEq::approx_eq(
-                *actual_value,
+                actual_value,
                 expected_value,
                 float_cmp::F64Margin::zero(),
             );
         }
 
-        (Value::Boolean(actual_value), serde_json::Value::Bool(expected_value)) => {
-            actual_value == expected_value
-        }
+        (Value::Bool(actual_value), Value::Bool(expected_value)) => actual_value == expected_value,
 
-        (Value::Null, serde_json::Value::Null) => true,
+        (Value::Null, Value::Null) => true,
 
         _ => false,
     }

@@ -24,6 +24,8 @@ impl Scope {
             .set_nofail("true", Value::Boolean(true))
             .set_nofail("false", Value::Boolean(false))
             .set_nofail("null", Value::Null)
+            .set_nofail("scope", Function::new(default_fns::scope))
+            .set_nofail("local_scope", Function::new(default_fns::local_scope))
             .set_nofail("/pipe", Function::new2(default_fns::pipe))
             .set_nofail("/add", Function::new2(default_fns::add))
             .set_nofail("/sub", Function::new2(default_fns::sub))
@@ -35,6 +37,7 @@ impl Scope {
             .set_nofail("/le", Function::new2(default_fns::le))
             .set_nofail("/gt", Function::new2(default_fns::gt))
             .set_nofail("/lt", Function::new2(default_fns::lt))
+            .inherit()
     }
 
     pub fn inherit(&self) -> Scope {
@@ -74,16 +77,47 @@ impl Scope {
         }
         scope
     }
+
+    pub fn values(&self) -> impl Iterator<Item = (&str, &Value)> {
+        self.values.iter().map(|(key, value)| (key.as_str(), value))
+    }
+
+    pub fn values_recurse(&self) -> impl Iterator<Item = (&str, &Value)> {
+        if let Some(parent) = &self.parent {
+            Box::new(self.values().chain(parent.values_recurse()))
+                as Box<dyn Iterator<Item = (&str, &Value)>>
+        } else {
+            Box::new(self.values())
+        }
+    }
 }
 
 mod default_fns {
     use super::*;
 
-    pub(crate) fn pipe(lhs: Value, rhs: Value) -> ScriptResult<Value> {
-        rhs.invoke(lhs)
+    pub(crate) fn scope(call_scope: Scope, _: Value) -> ScriptResult<Value> {
+        Ok(Value::Object(
+            call_scope
+                .values_recurse()
+                .map(|(key, value)| (key.to_string(), value.clone()))
+                .collect(),
+        ))
     }
 
-    pub(crate) fn add(lhs: Value, rhs: Value) -> ScriptResult<Value> {
+    pub(crate) fn local_scope(call_scope: Scope, _: Value) -> ScriptResult<Value> {
+        Ok(Value::Object(
+            call_scope
+                .values()
+                .map(|(key, value)| (key.to_string(), value.clone()))
+                .collect(),
+        ))
+    }
+
+    pub(crate) fn pipe(call_scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
+        rhs.invoke(call_scope, lhs)
+    }
+
+    pub(crate) fn add(_call_scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
         Ok(match (&lhs, &rhs) {
             (Value::Number(x), Value::Number(y)) => Value::Number(x + y),
 
@@ -97,7 +131,7 @@ mod default_fns {
         })
     }
 
-    pub(crate) fn sub(lhs: Value, rhs: Value) -> ScriptResult<Value> {
+    pub(crate) fn sub(_call_scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
         Ok(match (&lhs, &rhs) {
             (Value::Number(x), Value::Number(y)) => Value::Number(x - y), // TODO: checked
 
@@ -111,7 +145,7 @@ mod default_fns {
         })
     }
 
-    pub(crate) fn mul(lhs: Value, rhs: Value) -> ScriptResult<Value> {
+    pub(crate) fn mul(_call_scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
         Ok(match (&lhs, &rhs) {
             (Value::Number(x), Value::Number(y)) => Value::Number(x * y), // TODO: checked
 
@@ -125,7 +159,7 @@ mod default_fns {
         })
     }
 
-    pub(crate) fn div(lhs: Value, rhs: Value) -> ScriptResult<Value> {
+    pub(crate) fn div(_call_scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
         Ok(match (&lhs, &rhs) {
             (Value::Number(x), Value::Number(y)) => Value::Number(x / y), // TODO: checked
 
@@ -139,7 +173,7 @@ mod default_fns {
         })
     }
 
-    pub(crate) fn eq(lhs: Value, rhs: Value) -> ScriptResult<Value> {
+    pub(crate) fn eq(_call_scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
         Err(script_error!(
             "comparison not implement for types: {:?}, {:?}",
             lhs.value_type(),
@@ -147,7 +181,7 @@ mod default_fns {
         ))
     }
 
-    pub(crate) fn ne(lhs: Value, rhs: Value) -> ScriptResult<Value> {
+    pub(crate) fn ne(_call_scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
         Err(script_error!(
             "comparison not implement for types: {:?}, {:?}",
             lhs.value_type(),
@@ -155,7 +189,7 @@ mod default_fns {
         ))
     }
 
-    pub(crate) fn ge(lhs: Value, rhs: Value) -> ScriptResult<Value> {
+    pub(crate) fn ge(_call_scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
         Err(script_error!(
             "comparison not implement for types: {:?}, {:?}",
             lhs.value_type(),
@@ -163,7 +197,7 @@ mod default_fns {
         ))
     }
 
-    pub(crate) fn le(lhs: Value, rhs: Value) -> ScriptResult<Value> {
+    pub(crate) fn le(_call_scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
         Err(script_error!(
             "comparison not implement for types: {:?}, {:?}",
             lhs.value_type(),
@@ -171,7 +205,7 @@ mod default_fns {
         ))
     }
 
-    pub(crate) fn gt(lhs: Value, rhs: Value) -> ScriptResult<Value> {
+    pub(crate) fn gt(_call_scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
         Err(script_error!(
             "comparison not implement for types: {:?}, {:?}",
             lhs.value_type(),
@@ -179,7 +213,7 @@ mod default_fns {
         ))
     }
 
-    pub(crate) fn lt(lhs: Value, rhs: Value) -> ScriptResult<Value> {
+    pub(crate) fn lt(_call_scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
         Err(script_error!(
             "comparison not implement for types: {:?}, {:?}",
             lhs.value_type(),

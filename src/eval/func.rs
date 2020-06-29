@@ -13,12 +13,12 @@ pub enum Function {
 }
 
 impl Function {
-    pub fn invoke(&self, arg: Value) -> ScriptResult<Value> {
+    pub fn invoke(&self, call_scope: Scope, arg: Value) -> ScriptResult<Value> {
         match self {
             Function::Code(scope, fn_arg, expr) => {
                 let mut scope = scope.clone();
                 if let Some(fn_arg) = fn_arg {
-                    scope = scope.set_nofail(&fn_arg.name.value, arg);
+                    scope = scope.set(&fn_arg.name.value, arg)?;
                 }
                 expr.evaluate_value(scope)
             }
@@ -29,7 +29,7 @@ impl Function {
                 }
                 Ok(func.extend_scope(scope).into())
             }
-            Function::Native(func) => (func.0)(arg),
+            Function::Native(func) => (func.0)(call_scope, arg),
         }
     }
 
@@ -59,33 +59,36 @@ impl Function {
 
     pub fn new<F>(f: F) -> Function
     where
-        F: 'static + Fn(Value) -> ScriptResult<Value>,
+        F: 'static + Fn(Scope, Value) -> ScriptResult<Value>,
     {
         Function::Native(NativeFunction(Arc::new(f)))
     }
 
     pub fn new2<F>(f: F) -> Function
     where
-        F: 'static + Fn(Value, Value) -> ScriptResult<Value>,
+        F: 'static + Fn(Scope, Value, Value) -> ScriptResult<Value>,
     {
         let f = Arc::new(f);
-        Function::new(move |arg0: Value| {
+        Function::new(move |_: Scope, arg0: Value| {
             let f = f.clone();
-            Ok(Function::new(move |arg1| f(arg0.clone(), arg1)).into())
+            Ok(Function::new(move |call_scope, arg1| f(call_scope, arg0.clone(), arg1)).into())
         })
     }
 
     pub fn new3<F>(f: F) -> Function
     where
-        F: 'static + Fn(Value, Value, Value) -> ScriptResult<Value>,
+        F: 'static + Fn(Scope, Value, Value, Value) -> ScriptResult<Value>,
     {
         let f = Arc::new(f);
-        Function::new(move |arg0: Value| {
+        Function::new(move |_: Scope, arg0: Value| {
             let f = f.clone();
-            Ok(Function::new(move |arg1| {
+            Ok(Function::new(move |_, arg1| {
                 let f = f.clone();
                 let arg0 = arg0.clone();
-                Ok(Function::new(move |arg2| f(arg0.clone(), arg1.clone(), arg2)).into())
+                Ok(Function::new(move |call_scope, arg2| {
+                    f(call_scope, arg0.clone(), arg1.clone(), arg2)
+                })
+                .into())
             })
             .into())
         })
@@ -99,7 +102,7 @@ impl From<Function> for Value {
 }
 
 #[derive(Clone)]
-pub struct NativeFunction(Arc<dyn Fn(Value) -> ScriptResult<Value>>);
+pub struct NativeFunction(Arc<dyn Fn(Scope, Value) -> ScriptResult<Value>>);
 
 impl Debug for NativeFunction {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
