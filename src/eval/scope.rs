@@ -16,7 +16,7 @@ impl Scope {
         }
     }
 
-    pub fn new() -> ScriptResult<Scope> {
+    pub fn new_default() -> ScriptResult<Scope> {
         let scope = Scope::new_empty()
             .set("/pipe", Function::new2(default_fns::pipe))?
             .set("/add", Function::new2(default_fns::add))?
@@ -114,26 +114,50 @@ mod default_fns {
     }
 
     pub(crate) fn eq(scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
-        todo!()
+        Err(script_error!(
+            "comparison not implement for types: {:?}, {:?}",
+            lhs.value_type(),
+            rhs.value_type()
+        ))
     }
 
     pub(crate) fn ne(scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
-        todo!()
+        Err(script_error!(
+            "comparison not implement for types: {:?}, {:?}",
+            lhs.value_type(),
+            rhs.value_type()
+        ))
     }
 
     pub(crate) fn ge(scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
-        todo!()
+        Err(script_error!(
+            "comparison not implement for types: {:?}, {:?}",
+            lhs.value_type(),
+            rhs.value_type()
+        ))
     }
 
     pub(crate) fn le(scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
-        todo!()
+        Err(script_error!(
+            "comparison not implement for types: {:?}, {:?}",
+            lhs.value_type(),
+            rhs.value_type()
+        ))
     }
 
     pub(crate) fn gt(scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
-        todo!()
+        Err(script_error!(
+            "comparison not implement for types: {:?}, {:?}",
+            lhs.value_type(),
+            rhs.value_type()
+        ))
     }
 
     pub(crate) fn lt(scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
-        todo!()
+        Err(script_error!(
+            "comparison not implement for types: {:?}, {:?}",
+            lhs.value_type(),
+            rhs.value_type()
+        ))
     }
 }

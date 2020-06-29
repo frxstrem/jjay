@@ -1,4 +1,5 @@
 use pest::iterators::Pair;
+use std::collections::BTreeMap;
 use std::collections::VecDeque;
 
 use super::{Node, Rule};
@@ -182,8 +183,6 @@ impl Node for Expr {
 
 impl Evaluate for Expr {
     fn evaluate(&self, scope: Scope) -> ScriptResult<(Scope, Value)> {
-        use std::collections::HashMap;
-
         let value = match self {
             Expr::BinOp(lhs, op, rhs) => {
                 let lhs = lhs.evaluate_value(scope.clone())?;
@@ -207,7 +206,7 @@ impl Evaluate for Expr {
             }
 
             Expr::Object(object) => {
-                let mut properties = HashMap::new();
+                let mut properties = BTreeMap::new();
 
                 for entry in &object.entries {
                     let key = entry.key.evaluate_value(scope.clone())?.to_string()?;

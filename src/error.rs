@@ -1,6 +1,7 @@
 use std::fmt::{self, Display};
 
 use crate::ast::Rule;
+use crate::eval::ValueType;
 
 pub type ParseResult<T> = Result<T, ParseError>;
 
@@ -29,14 +30,16 @@ impl From<pest::error::Error<Rule>> for ParseError {
 
 pub type ScriptResult<T> = Result<T, ScriptError>;
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum ScriptError {
     VariableNotFound(String),
     VariableAlreadyExists(String),
-    NotStringConvertible,
-    NotCallable,
+    NotSerializable(ValueType),
+    NotStringConvertible(ValueType),
+    NotCallable(ValueType),
 
     Parse(ParseError),
+    Io(std::io::Error),
     Other(String),
 }
 
@@ -47,10 +50,16 @@ impl Display for ScriptError {
             ScriptError::VariableAlreadyExists(name) => {
                 write!(fmt, "Variable already exists: {}", name)
             }
-            ScriptError::NotStringConvertible => write!(fmt, "Cannot convert value to string"),
-            ScriptError::NotCallable => write!(fmt, "Cannot call value"),
+            ScriptError::NotSerializable(value_type) => {
+                write!(fmt, "Cannot serialize {} as JSON", value_type)
+            }
+            ScriptError::NotStringConvertible(value_type) => {
+                write!(fmt, "Cannot convert {} to string", value_type)
+            }
+            ScriptError::NotCallable(value_type) => write!(fmt, "Cannot call {}", value_type),
 
             ScriptError::Parse(err) => write!(fmt, "{}", err),
+            ScriptError::Io(err) => write!(fmt, "{}", err),
             ScriptError::Other(msg) => write!(fmt, "{}", msg),
         }
     }
@@ -61,6 +70,12 @@ impl std::error::Error for ScriptError {}
 impl From<ParseError> for ScriptError {
     fn from(err: ParseError) -> ScriptError {
         ScriptError::Parse(err)
+    }
+}
+
+impl From<std::io::Error> for ScriptError {
+    fn from(err: std::io::Error) -> ScriptError {
+        ScriptError::Io(err)
     }
 }
 
