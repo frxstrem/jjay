@@ -32,7 +32,9 @@ node! {
 }
 
 impl Evaluate for Block {
-    fn evaluate(&self, mut scope: Scope) -> ScriptResult<(Scope, Value)> {
+    fn evaluate(&self, scope: Scope) -> ScriptResult<(Scope, Value)> {
+        let mut scope = scope.inherit();
+
         for stmt in &self.stmts {
             let (s, _) = stmt.evaluate(scope)?;
             scope = s;
