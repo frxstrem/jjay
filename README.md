@@ -124,7 +124,7 @@ left-hand side as the argument, so `x | f` is equivalent to `f(x)`.
 
 | Operator | Function name | Precedence | Associativity |
 |----------|---------------|------------|---------------|
-| `|`      | `/pipe`       | 0          | Left-to-right |
+| `\|`     | `/pipe`       | 0          | Left-to-right |
 | `==`     | `/eq`         | 1          | Left-to-right |
 | `!=`     | `/ne`         | 1          | Left-to-right |
 | `<=`     | `/le`         | 1          | Left-to-right |
