@@ -2,15 +2,22 @@ use jjay::*;
 
 #[allow(unused)]
 macro_rules! make_test {
-    ($name:ident, $file:literal, $expected:ident) => {
+    ($(#[$meta:meta])* $name:ident, $file:literal, $expected:ident) => {
         ::paste::item! {
-            #[test]
-            #[allow(non_snake_case)]
-            fn [< json_ $name >]() {
-                $crate::common::run_test(include_bytes!(concat!("json_data/", $file)), $crate::common::TestResult::$expected);
-            }
+            make_test!(@meta $expected
+                #[test]
+                #[allow(non_snake_case)]
+                $(#[$meta])*
+                fn [< json_ $name >]() {
+                    $crate::common::run_test(include_bytes!(concat!("json_data/", $file)), $crate::common::TestResult::$expected);
+                }
+            );
         }
     };
+
+    (@meta y $($tt:tt)*) => { $($tt)* };
+    (@meta n $($tt:tt)*) => { #[cfg_attr(not(feature = "n-tests"), ignore)] $($tt)* };
+    (@meta i $($tt:tt)*) => { #[cfg_attr(not(feature = "i-tests"), ignore)] $($tt)* };
 }
 
 #[derive(Copy, Clone, Debug)]
