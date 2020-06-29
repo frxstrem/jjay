@@ -54,10 +54,10 @@ mod default_fns {
     use super::*;
 
     pub(crate) fn pipe(scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
-        todo!()
+        rhs.invoke(scope, lhs)
     }
 
-    pub(crate) fn add(scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
+    pub(crate) fn add(_scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
         Ok(match (&lhs, &rhs) {
             (Value::Number(x), Value::Number(y)) => Value::Number(x + y),
 
@@ -71,7 +71,7 @@ mod default_fns {
         })
     }
 
-    pub(crate) fn sub(scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
+    pub(crate) fn sub(_scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
         Ok(match (&lhs, &rhs) {
             (Value::Number(x), Value::Number(y)) => Value::Number(x - y), // TODO: checked
 
@@ -85,7 +85,7 @@ mod default_fns {
         })
     }
 
-    pub(crate) fn mul(scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
+    pub(crate) fn mul(_scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
         Ok(match (&lhs, &rhs) {
             (Value::Number(x), Value::Number(y)) => Value::Number(x * y), // TODO: checked
 
@@ -99,7 +99,7 @@ mod default_fns {
         })
     }
 
-    pub(crate) fn div(scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
+    pub(crate) fn div(_scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
         Ok(match (&lhs, &rhs) {
             (Value::Number(x), Value::Number(y)) => Value::Number(x / y), // TODO: checked
 
@@ -113,7 +113,7 @@ mod default_fns {
         })
     }
 
-    pub(crate) fn eq(scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
+    pub(crate) fn eq(_scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
         Err(script_error!(
             "comparison not implement for types: {:?}, {:?}",
             lhs.value_type(),
@@ -121,7 +121,7 @@ mod default_fns {
         ))
     }
 
-    pub(crate) fn ne(scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
+    pub(crate) fn ne(_scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
         Err(script_error!(
             "comparison not implement for types: {:?}, {:?}",
             lhs.value_type(),
@@ -129,7 +129,7 @@ mod default_fns {
         ))
     }
 
-    pub(crate) fn ge(scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
+    pub(crate) fn ge(_scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
         Err(script_error!(
             "comparison not implement for types: {:?}, {:?}",
             lhs.value_type(),
@@ -137,7 +137,7 @@ mod default_fns {
         ))
     }
 
-    pub(crate) fn le(scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
+    pub(crate) fn le(_scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
         Err(script_error!(
             "comparison not implement for types: {:?}, {:?}",
             lhs.value_type(),
@@ -145,7 +145,7 @@ mod default_fns {
         ))
     }
 
-    pub(crate) fn gt(scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
+    pub(crate) fn gt(_scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
         Err(script_error!(
             "comparison not implement for types: {:?}, {:?}",
             lhs.value_type(),
@@ -153,7 +153,7 @@ mod default_fns {
         ))
     }
 
-    pub(crate) fn lt(scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
+    pub(crate) fn lt(_scope: Scope, lhs: Value, rhs: Value) -> ScriptResult<Value> {
         Err(script_error!(
             "comparison not implement for types: {:?}, {:?}",
             lhs.value_type(),
