@@ -5,7 +5,7 @@ use std::collections::VecDeque;
 use super::{Node, Rule};
 use crate::ast::helpers;
 use crate::error::*;
-use crate::eval::{Evaluate, Scope, Value};
+use crate::eval::{Evaluate, Function, Scope, Value};
 
 node! {
     struct Script = Rule::script {
@@ -68,11 +68,21 @@ node! {
 
 impl Evaluate for LetStmt {
     fn evaluate(&self, scope: Scope) -> ScriptResult<(Scope, Value)> {
-        if !self.args.is_empty() {
-            todo!()
-        }
+        let value = if self.args.is_empty() {
+            self.value.evaluate_value(scope.clone())?
+        } else {
+            let mut args: Vec<_> = self.args.iter().collect();
 
-        let value = self.value.evaluate_value(scope.clone())?;
+            let arg = args.pop().unwrap();
+            let mut func = Function::new_from_expr(arg.arg.clone(), self.value.clone());
+
+            while let Some(arg) = args.pop() {
+                func = Function::new_nested(arg.arg.clone(), func);
+            }
+
+            func.into()
+        };
+
         let scope = scope.set(&self.name.value, value)?;
         Ok((scope, Value::Null))
     }

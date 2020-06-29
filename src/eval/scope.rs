@@ -45,8 +45,20 @@ impl Scope {
             return Err(ScriptError::VariableAlreadyExists(name.to_string()));
         }
 
+        Ok(self.set_nofail(name, value))
+    }
+
+    pub fn set_nofail(mut self, name: &str, value: impl Into<Value>) -> Scope {
         self.values.insert(name.to_string(), value.into());
-        Ok(self)
+        self
+    }
+
+    pub fn extend(mut self, other: Scope) -> Scope {
+        let mut scope = self;
+        for (name, value) in other.values {
+            scope = scope.set_nofail(&name, value);
+        }
+        scope
     }
 }
 
