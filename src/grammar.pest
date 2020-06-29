@@ -1,13 +1,13 @@
 WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
 
-COMMENT = {
+COMMENT = _{
   "//" ~ (!"\n" ~ ANY)*
   | "/*" ~ (!"*/" ~ ANY) ~ "*/"
 }
 
 script = { SOI ~ block_body ~ EOI }
 block = { "(" ~ block_body ~ ")" }
-block_body = _{ stmt* ~ seq }
+block_body = _{ stmt* ~ expr }
 
 stmt = { let_stmt }
 let_stmt = { kw_let ~ ident ~ fn_args* ~ "=" ~ expr ~ ";" }
@@ -21,9 +21,10 @@ fn_arg = {
 }
 
 // sequences and expressions
-seq = { expr ~ ("," ~ expr)* }
+seq = { expr ~ ("," ~ expr)? }
 expr = { expr_call ~ (operator ~ expr_call)* }
-expr_call = { expr_atom ~ ("(" ~ seq ~ ")")*  }
+expr_call = { expr_atom ~ args*  }
+args = { "(" ~ expr? ~ ")" }
 expr_atom = _{
   object | array | block | string | number | ident
 }

@@ -5,6 +5,7 @@ mod helpers;
 mod nodes;
 
 use pest::iterators::{Pair, Pairs};
+use pest::Parser;
 use pest_derive::Parser;
 
 use crate::error::*;
@@ -15,8 +16,9 @@ pub use self::nodes::*;
 #[grammar = "grammar.pest"]
 pub struct JJayParser;
 
-pub fn parse_full<T: Node>(mut pairs: Pairs<Rule>) -> ParseResult<T> {
-    let node = T::parse_many(&mut pairs)?;
+pub fn parse_str(s: &str) -> ParseResult<Script> {
+    let mut pairs = JJayParser::parse(Rule::script, s)?;
+    let node = Script::parse_many(&mut pairs)?;
     helpers::check_end(pairs)?;
     Ok(node)
 }
@@ -40,6 +42,20 @@ impl Node for String {
 
     fn parse(pair: Pair<Rule>) -> ParseResult<String> {
         Ok(pair.as_str().to_string())
+    }
+}
+
+impl<T: Node> Node for Box<T> {
+    fn can_parse(_: &Rule) -> bool {
+        true
+    }
+
+    fn parse(pair: Pair<Rule>) -> ParseResult<Box<T>> {
+        T::parse(pair).map(Box::new)
+    }
+
+    fn parse_many(pairs: &mut Pairs<Rule>) -> ParseResult<Box<T>> {
+        T::parse_many(pairs).map(Box::new)
     }
 }
 

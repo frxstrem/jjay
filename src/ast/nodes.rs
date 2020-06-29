@@ -1,19 +1,44 @@
+use pest::iterators::Pair;
+use std::collections::VecDeque;
+
 use super::{Node, Rule};
 use crate::ast::helpers;
 use crate::error::*;
-use pest::iterators::Pair;
+use crate::eval::{Evaluate, Scope, Value};
 
 node! {
     struct Script = Rule::script {
-        stmt: Vec<Stmt>,
-        expr: Seq,
+        stmts: Vec<Stmt>,
+        expr: Expr,
+    }
+}
+
+impl Evaluate for Script {
+    fn evaluate(&self, mut scope: Scope) -> ScriptResult<(Scope, Value)> {
+        for stmt in &self.stmts {
+            let (s, _) = stmt.evaluate(scope)?;
+            scope = s;
+        }
+
+        self.expr.evaluate(scope)
     }
 }
 
 node! {
     struct Block = Rule::block {
-        stmt: Vec<Stmt>,
-        expr: Seq,
+        stmts: Vec<Stmt>,
+        expr: Expr,
+    }
+}
+
+impl Evaluate for Block {
+    fn evaluate(&self, mut scope: Scope) -> ScriptResult<(Scope, Value)> {
+        for stmt in &self.stmts {
+            let (s, _) = stmt.evaluate(scope)?;
+            scope = s;
+        }
+
+        self.expr.evaluate(scope)
     }
 }
 
@@ -23,12 +48,32 @@ node! {
     }
 }
 
+impl Evaluate for Stmt {
+    fn evaluate(&self, scope: Scope) -> ScriptResult<(Scope, Value)> {
+        match self {
+            Stmt::Let(inner) => inner.evaluate(scope),
+        }
+    }
+}
+
 node! {
     struct LetStmt = Rule::let_stmt {
         let_: KwLet,
         name: Ident,
         args: Vec<FnArgs>,
         value: Expr,
+    }
+}
+
+impl Evaluate for LetStmt {
+    fn evaluate(&self, scope: Scope) -> ScriptResult<(Scope, Value)> {
+        if !self.args.is_empty() {
+            todo!()
+        }
+
+        let value = self.value.evaluate_value(scope.clone())?;
+        let scope = scope.set(&self.name.value, value)?;
+        Ok((scope, Value::Null))
     }
 }
 
@@ -47,17 +92,23 @@ node! {
 
 node! {
     struct Seq = Rule::seq {
-        expr: Vec<Expr>,
+        exprs: Vec<Expr>,
+    }
+}
+
+impl From<Vec<Expr>> for Seq {
+    fn from(exprs: Vec<Expr>) -> Seq {
+        Seq { exprs }
     }
 }
 
 #[derive(Clone, Debug)]
 pub enum Expr {
     BinOp(Box<Expr>, Op, Box<Expr>),
-    Call(Box<Expr>, Seq),
+    Call(Box<Expr>, ArgList),
     Object(ObjectExpr),
     Array(ArrayExpr),
-    Block(Block),
+    Block(Box<Block>),
     String(StringExpr),
     Number(NumberExpr),
     Ident(Ident),
@@ -98,7 +149,7 @@ impl Node for Expr {
                         } else if let Some(atom) = <Option<ArrayExpr>>::parse_many(&mut pairs)? {
                             Expr::Array(atom)
                         } else if let Some(atom) = <Option<Block>>::parse_many(&mut pairs)? {
-                            Expr::Block(atom)
+                            Expr::Block(Box::new(atom))
                         } else if let Some(atom) = <Option<StringExpr>>::parse_many(&mut pairs)? {
                             Expr::String(atom)
                         } else if let Some(atom) = <Option<NumberExpr>>::parse_many(&mut pairs)? {
@@ -110,12 +161,12 @@ impl Node for Expr {
                         };
 
                         // parse arguments
-                        let arg_tuples: Vec<Seq> = Node::parse_many(&mut pairs)?;
+                        let arg_lists: Vec<ArgList> = Node::parse_many(&mut pairs)?;
                         helpers::check_end(pairs)?;
 
                         let mut expr = atom;
-                        for arg_tuple in arg_tuples {
-                            expr = Expr::Call(Box::new(expr), arg_tuple);
+                        for arg_list in arg_lists {
+                            expr = Expr::Call(Box::new(expr), arg_list);
                         }
 
                         Ok(expr)
@@ -129,7 +180,72 @@ impl Node for Expr {
     }
 }
 
-#[derive(Clone, Debug)]
+impl Evaluate for Expr {
+    fn evaluate(&self, scope: Scope) -> ScriptResult<(Scope, Value)> {
+        use std::collections::HashMap;
+
+        let value = match self {
+            Expr::BinOp(lhs, op, rhs) => {
+                let lhs = lhs.evaluate_value(scope.clone())?;
+                let rhs = rhs.evaluate_value(scope.clone())?;
+                let func_name = op.func_name();
+
+                let func = scope.get(func_name)?;
+                let func = evaluate_func_call(scope.clone(), func, lhs)?;
+                evaluate_func_call(scope.clone(), func, rhs)?
+            }
+
+            Expr::Call(func, args) => {
+                let func = func.evaluate_value(scope.clone())?;
+                let arg = args
+                    .arg
+                    .as_ref()
+                    .map(|expr| expr.evaluate_value(scope.clone()))
+                    .transpose()?
+                    .unwrap_or(Value::Null);
+                evaluate_func_call(scope.clone(), func, arg)?
+            }
+
+            Expr::Object(object) => {
+                let mut properties = HashMap::new();
+
+                for entry in &object.entries {
+                    let key = entry.key.evaluate_value(scope.clone())?.to_string()?;
+                    let value = entry.value.evaluate_value(scope.clone())?;
+
+                    properties.insert(key, value);
+                }
+
+                Value::Object(properties)
+            }
+
+            Expr::Array(array) => Value::Array(
+                array
+                    .items
+                    .iter()
+                    .map(|item| item.evaluate_value(scope.clone()))
+                    .collect::<ScriptResult<_>>()?,
+            ),
+
+            Expr::Block(block) => block.evaluate_value(scope.clone())?,
+
+            Expr::Number(number) => number.decode().map(Value::Number)?,
+            Expr::String(string) => string.decode().map(Value::String)?,
+
+            Expr::Ident(ident) => scope.get(&ident.value)?,
+
+            _ => todo!(),
+        };
+        Ok((scope, value))
+    }
+}
+
+fn evaluate_func_call(scope: Scope, func: Value, arg: Value) -> ScriptResult<Value> {
+    let value = func.invoke(scope.clone(), arg)?;
+    Ok(value)
+}
+
+#[derive(Copy, Clone, Debug)]
 pub enum Op {
     Pipe,
     Eq,
@@ -142,6 +258,24 @@ pub enum Op {
     Sub,
     Mul,
     Div,
+}
+
+impl Op {
+    fn func_name(&self) -> &'static str {
+        match self {
+            Op::Pipe => "/pipe",
+            Op::Eq => "/eq",
+            Op::Ne => "/ne",
+            Op::Le => "/le",
+            Op::Ge => "/ge",
+            Op::Lt => "/lt",
+            Op::Gt => "/gt",
+            Op::Add => "/add",
+            Op::Sub => "/sub",
+            Op::Mul => "/mul",
+            Op::Div => "/div",
+        }
+    }
 }
 
 impl Node for Op {
@@ -182,6 +316,12 @@ impl Node for Op {
 }
 
 node! {
+    struct ArgList = Rule::args {
+        arg: Option<Box<Expr>>,
+    }
+}
+
+node! {
     struct ObjectExpr = Rule::object {
         entries: Vec<ObjectEntry>,
     }
@@ -201,6 +341,15 @@ node! {
     }
 }
 
+impl Evaluate for ObjectKey {
+    fn evaluate(&self, scope: Scope) -> ScriptResult<(Scope, Value)> {
+        match self {
+            ObjectKey::String(string) => string.evaluate(scope),
+            ObjectKey::Ident(ident) => Ok((scope, Value::String(ident.value.clone()))),
+        }
+    }
+}
+
 node! {
     struct ArrayExpr = Rule::array {
         items: Vec<Expr>,
@@ -209,12 +358,40 @@ node! {
 
 node! {
     struct StringExpr = Rule::string {
-        content: String,
+        value: String,
+    }
+}
+
+impl StringExpr {
+    pub fn decode(&self) -> ScriptResult<String> {
+        serde_json::from_str(&format!("\"{}\"", self.value))
+            .map_err(|_| ScriptError::Other(format!("Invalid string literal: \"{}\"", self.value)))
+    }
+}
+
+impl Evaluate for StringExpr {
+    fn evaluate(&self, scope: Scope) -> ScriptResult<(Scope, Value)> {
+        let value = self.decode()?;
+        Ok((scope, Value::String(value)))
     }
 }
 
 node! {
     struct NumberExpr = Rule::number
+}
+
+impl NumberExpr {
+    pub fn decode(&self) -> ScriptResult<f64> {
+        serde_json::from_str(&self.value)
+            .map_err(|_| ScriptError::Other(format!("Invalid numeric literal: {}", self.value)))
+    }
+}
+
+impl Evaluate for NumberExpr {
+    fn evaluate(&self, scope: Scope) -> ScriptResult<(Scope, Value)> {
+        let value = self.decode()?;
+        Ok((scope, Value::Number(value)))
+    }
 }
 
 node! {
