@@ -13,6 +13,7 @@ pub enum Value {
     Boolean(bool),
     Null,
 
+    PropagatedNull,
     Function(Function),
 }
 
@@ -49,8 +50,76 @@ impl Value {
 
     pub fn invoke(&self, scope: Scope, arg: Value) -> ScriptResult<Value> {
         match self {
-            Value::Function(func) => func.invoke(scope, arg),
+            Value::Function(func) => Ok(func.invoke(scope, arg)?.simplify()),
+            Value::PropagatedNull => Ok(Value::PropagatedNull),
             value @ _ => Err(ScriptError::NotCallable(value.value_type())),
+        }
+    }
+
+    pub fn get_property(
+        &self,
+        _scope: Scope,
+        key: Value,
+        propagate_null: bool,
+    ) -> ScriptResult<Value> {
+        match self {
+            Value::Object(object) => {
+                let key = key.to_string()?;
+                if let Some(value) = object.get(&key) {
+                    if propagate_null {
+                        Ok(value.clone().or_propagated_null())
+                    } else {
+                        Ok(value.clone())
+                    }
+                } else {
+                    if propagate_null {
+                        Ok(Value::PropagatedNull)
+                    } else {
+                        Err(ScriptError::PropertyNotFound(self.value_type(), key))
+                    }
+                }
+            }
+
+            Value::Array(array) => {
+                let key = key.to_u32()?;
+                if let Some(value) = array.get(key as usize) {
+                    if propagate_null {
+                        Ok(value.clone().or_propagated_null())
+                    } else {
+                        Ok(value.clone())
+                    }
+                } else {
+                    if propagate_null {
+                        Ok(Value::PropagatedNull)
+                    } else {
+                        Err(ScriptError::PropertyNotFound(
+                            self.value_type(),
+                            key.to_string(),
+                        ))
+                    }
+                }
+            }
+
+            Value::PropagatedNull => Ok(Value::PropagatedNull),
+
+            _ => Err(ScriptError::PropertyNotFound(
+                self.value_type(),
+                key.to_string()?,
+            )),
+        }
+    }
+
+    pub fn simplify(self) -> Value {
+        match self {
+            Value::Null | Value::PropagatedNull => Value::Null,
+            value @ _ => value,
+        }
+    }
+
+    pub fn or_propagated_null(self) -> Value {
+        match self {
+            Value::Null | Value::PropagatedNull => Value::PropagatedNull,
+            value @ _ => value,
         }
     }
 
@@ -63,6 +132,17 @@ impl Value {
             Value::Null => Ok(format!("null")),
 
             value @ _ => Err(ScriptError::NotStringConvertible(value.value_type())),
+        }
+    }
+
+    pub fn to_u32(&self) -> ScriptResult<u32> {
+        match self {
+            Value::String(value) => Ok(value
+                .parse()
+                .map_err(|_| script_error!("cannot convert string {:?} to integer", value))?),
+            Value::Number(value) => Ok(*value as u32), // check value bounds
+
+            value @ _ => Err(ScriptError::NotIntConvertible(value.value_type())),
         }
     }
 
@@ -97,7 +177,7 @@ impl Value {
 
             Value::Boolean(b) => Ok(Some(serde_json::Value::Bool(*b))),
 
-            Value::Null => Ok(Some(serde_json::Value::Null)),
+            Value::Null | Value::PropagatedNull => Ok(Some(serde_json::Value::Null)),
 
             Value::Function(..) => Ok(None),
         }
@@ -128,7 +208,7 @@ impl Value {
             Value::Number(..) => ValueType::Number,
             Value::String(..) => ValueType::String,
             Value::Boolean(..) => ValueType::Boolean,
-            Value::Null => ValueType::Null,
+            Value::Null | Value::PropagatedNull => ValueType::Null,
             Value::Function(..) => ValueType::Function,
         }
     }

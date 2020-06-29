@@ -22,6 +22,16 @@ macro_rules! make_fail_test {
     }
 }
 
+macro_rules! make_parsefail_test {
+    ($(#[$meta:meta])* $name:ident: $script:literal) => {
+        #[test]
+        $(#[$meta])*
+        fn $name() {
+            $crate::common::run_script_parsefail_test($script)
+        }
+    }
+}
+
 macro_rules! make_json_test {
     ($(#[$meta:meta])* $name:ident, $file:literal, $expected:ident) => {
         ::paste::item! {
@@ -89,15 +99,22 @@ pub fn run_script_test(source: &str, expected: &str) {
         }
 
         Err(err) => {
-            eprintln!("{}", err);
-            panic!("test failure");
+            panic!("test failure:\n{}", err);
         }
+    }
+}
+pub fn run_script_parsefail_test(source: &str) {
+    match run_test(&source) {
+        Ok(_) => panic!("expected failure"),
+        Err(ScriptError::Parse(_)) => (/* OK */),
+        Err(err) => panic!("test failure:\n{}", err),
     }
 }
 
 pub fn run_script_fail_test(source: &str) {
     match run_test(&source) {
         Ok(_) => panic!("expected failure"),
+        Err(ScriptError::Parse(err)) => panic!("parse error:\n{}", err),
         Err(_) => (/* OK */),
     }
 }

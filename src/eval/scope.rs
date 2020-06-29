@@ -66,7 +66,8 @@ impl Scope {
     }
 
     pub fn set_nofail(mut self, name: &str, value: impl Into<Value>) -> Scope {
-        self.values.insert(name.to_string(), value.into());
+        self.values
+            .insert(name.to_string(), value.into().simplify());
         self
     }
 

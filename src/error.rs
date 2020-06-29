@@ -35,7 +35,9 @@ pub enum ScriptError {
     VariableNotFound(String),
     VariableAlreadyExists(String),
     NotStringConvertible(ValueType),
+    NotIntConvertible(ValueType),
     NotCallable(ValueType),
+    PropertyNotFound(ValueType, String),
 
     Parse(ParseError),
     Io(std::io::Error),
@@ -52,7 +54,13 @@ impl Display for ScriptError {
             ScriptError::NotStringConvertible(value_type) => {
                 write!(fmt, "Cannot convert {} to string", value_type)
             }
+            ScriptError::NotIntConvertible(value_type) => {
+                write!(fmt, "Cannot convert {} to integer", value_type)
+            }
             ScriptError::NotCallable(value_type) => write!(fmt, "Cannot call {}", value_type),
+            ScriptError::PropertyNotFound(value_type, key) => {
+                write!(fmt, "Value {} has no property {:?}", value_type, key)
+            }
 
             ScriptError::Parse(err) => write!(fmt, "{}", err),
             ScriptError::Io(err) => write!(fmt, "{}", err),

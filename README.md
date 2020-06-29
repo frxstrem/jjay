@@ -1,6 +1,6 @@
 # jjay
 
-**jjay** is a toy JSON templating language.
+**jjay** (pronounced *jay-jay*) is a toy JSON templating language.
 
 ## Features
 
@@ -10,7 +10,8 @@
 - [x] Functions
 - [x] Numeric operators (`+`, `-`, `*` and `/`)
 - [ ] Equality operators (`==`, `!=`, `<`, `<=`, `>`, `>=`) **[not implemented]**
-- [ ] Path access (`var.x.y`, `var["x"].y`) **[not implemented]**
+- [x] Path access (`var.x.y`, `var["x"].y`)
+- [x] Null propagation (`x?.y`, `f?(x)`)
 - [ ] Standard library of functions **[not implemented]**
 
 ## Syntax
@@ -91,9 +92,9 @@ let f(x) = x + 3;
 f(5) // = 8
 ```
 
-### Operators
+### Binary operators
 
-Operators are implemented as built-in functions.
+Most operators are implemented as built-in functions.
 
 jjay has the following arithmetic operators:
 
@@ -134,6 +135,25 @@ left-hand side as the argument, so `x | f` is equivalent to `f(x)`.
 | `-`      | `/sub`        | 2          | Left-to-right |
 | `*`      | `/mul`        | 3          | Left-to-right |
 | `/`      | `/div`        | 3          | Left-to-right |
+
+### Paths
+
+Values in objects can be access as `object.key` or `object["key"]`, where `"key"` may be any valid expression that can be converted to a string.
+
+Values in arrays can be accessed as `array[index]`, where `index` may be any valid expression that can be converted to an 32-bit unsigned integer. (Attempting to use numbers outside of this range may result in undefined behavior.)
+
+### Null propagation
+
+In paths or function calls, the null propagation operator `?` may be used to propagate null values or
+deal with empty properties:
+
+```
+null?.x.y.z // = null
+```
+
+```
+null?() // = null
+```
 
 ### Blocks
 

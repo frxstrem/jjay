@@ -40,7 +40,8 @@ impl Evaluate for Block {
             scope = s;
         }
 
-        self.expr.evaluate(scope)
+        let (scope, value) = self.expr.evaluate(scope.clone())?;
+        Ok((scope, value.simplify()))
     }
 }
 
@@ -118,6 +119,8 @@ impl From<Vec<Expr>> for Seq {
 pub enum Expr {
     BinOp(Box<Expr>, Op, Box<Expr>),
     Call(Box<Expr>, ArgList),
+    PathAccess(Box<Expr>, PathSegment, Option<NullPropagation>),
+    NullPropagate(Box<Expr>),
     Object(ObjectExpr),
     Array(ArrayExpr),
     Block(Box<Block>),
@@ -168,17 +171,30 @@ impl Node for Expr {
                     } else if let Some(atom) = <Option<Ident>>::parse_many(&mut pairs)? {
                         Expr::Ident(atom)
                     } else {
-                        unreachable!("rule {:?}", pairs.peek().as_ref().map(Pair::as_rule))
+                        unreachable!("rule {:?}", pairs.peek().as_ref().map(Pair::as_rule));
                     };
 
-                    // parse arguments
-                    let arg_lists: Vec<ArgList> = Node::parse_many(&mut pairs)?;
-                    helpers::check_end(pairs)?;
-
+                    // parse null propagation, path segments and function argument
                     let mut expr = atom;
-                    for arg_list in arg_lists {
-                        expr = Expr::Call(Box::new(expr), arg_list);
+                    while pairs.peek().is_some() {
+                        if let Some(_) = <Option<NullPropagation>>::parse_many(&mut pairs)? {
+                            expr = Expr::NullPropagate(Box::new(expr));
+                        } else if let Some(path_segment) =
+                            <Option<PathSegment>>::parse_many(&mut pairs)?
+                        {
+                            let null_propagation = Node::parse_many(&mut pairs)?;
+                            expr = Expr::PathAccess(Box::new(expr), path_segment, null_propagation);
+                        } else if let Some(arg_list) = <Option<ArgList>>::parse_many(&mut pairs)? {
+                            expr = Expr::Call(Box::new(expr), arg_list);
+                        } else {
+                            unreachable!("rule {:?}", pairs.peek().as_ref().map(Pair::as_rule));
+                        }
                     }
+
+                    // let mut expr = atom;
+                    // for arg_list in arg_lists {
+                    //     expr = Expr::Call(Box::new(expr), arg_list);
+                    // }
 
                     Ok(expr)
                 }
@@ -212,6 +228,17 @@ impl Evaluate for Expr {
                     .transpose()?
                     .unwrap_or(Value::Null);
                 evaluate_func_call(scope.clone(), func, arg)?
+            }
+
+            Expr::PathAccess(expr, path_segment, null_propagation) => {
+                let value = expr.evaluate_value(scope.clone())?;
+                let key = path_segment.evaluate_value(scope.clone())?;
+                value.get_property(scope.clone(), key, null_propagation.is_some())?
+            }
+
+            Expr::NullPropagate(expr) => {
+                let value = expr.evaluate_value(scope.clone())?;
+                value.or_propagated_null()
             }
 
             Expr::Object(object) => {
@@ -325,6 +352,27 @@ node! {
     struct ArgList = Rule::args {
         arg: Option<Box<Expr>>,
     }
+}
+
+node! {
+    enum PathSegment = Rule::path_segment {
+        Ident(Ident),
+        Expr(Box<Expr>),
+    }
+}
+
+impl Evaluate for PathSegment {
+    fn evaluate(&self, scope: Scope) -> ScriptResult<(Scope, Value)> {
+        let value = match self {
+            Self::Ident(ident) => Value::String(ident.value.clone()),
+            Self::Expr(expr) => expr.evaluate_value(scope.clone())?,
+        };
+        Ok((scope, value))
+    }
+}
+
+node! {
+    struct NullPropagation = Rule::null_propagation
 }
 
 node! {

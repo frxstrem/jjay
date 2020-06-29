@@ -23,7 +23,9 @@ fn_arg = {
 // sequences and expressions
 seq = { expr ~ ("," ~ expr)? }
 expr = { expr_call ~ (operator ~ expr_call)* }
-expr_call = { expr_atom ~ args*  }
+expr_call = { expr_atom ~ (null_propagation | path_segment | args)* }
+path_segment = { "." ~ ident | "."? ~ "[" ~ expr ~ "]" }
+null_propagation = @{ "?" }
 args = { "(" ~ expr? ~ ")" }
 expr_atom = _{
   object | array | block | string | number | ident
