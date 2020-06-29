@@ -28,10 +28,10 @@ pub trait Node: Sized + Clone + std::fmt::Debug {
     fn parse(pair: Pair<Rule>) -> ParseResult<Self>;
 
     fn parse_many(pairs: &mut Pairs<Rule>) -> ParseResult<Self> {
-        helpers::log_call::<Self, _, _>("parse_many", move || match pairs.next() {
+        match pairs.next() {
             Some(pair) => Self::parse(pair),
             None => unreachable!("end of tokens"),
-        })
+        }
     }
 }
 

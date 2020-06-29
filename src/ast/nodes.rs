@@ -122,62 +122,60 @@ impl Node for Expr {
 
     fn parse(pair: Pair<Rule>) -> ParseResult<Self> {
         use pest::prec_climber::{Assoc, Operator, PrecClimber};
-        helpers::log_call::<Self, _, _>("parse", move || {
-            helpers::check_rule(&pair, &Rule::expr)?;
 
-            let prec_climber = PrecClimber::new(vec![
-                Operator::new(Rule::pipe, Assoc::Left),
-                Operator::new(Rule::eq, Assoc::Left)
-                    | Operator::new(Rule::ne, Assoc::Left)
-                    | Operator::new(Rule::ge, Assoc::Left)
-                    | Operator::new(Rule::le, Assoc::Left)
-                    | Operator::new(Rule::gt, Assoc::Left)
-                    | Operator::new(Rule::lt, Assoc::Left),
-                Operator::new(Rule::add, Assoc::Left) | Operator::new(Rule::sub, Assoc::Left),
-                Operator::new(Rule::mul, Assoc::Left) | Operator::new(Rule::div, Assoc::Left),
-            ]);
+        helpers::check_rule(&pair, &Rule::expr)?;
 
-            prec_climber.climb(
-                pair.into_inner(),
-                |pair| match pair.as_rule() {
-                    Rule::expr_call => {
-                        let mut pairs = pair.into_inner();
+        let prec_climber = PrecClimber::new(vec![
+            Operator::new(Rule::pipe, Assoc::Left),
+            Operator::new(Rule::eq, Assoc::Left)
+                | Operator::new(Rule::ne, Assoc::Left)
+                | Operator::new(Rule::ge, Assoc::Left)
+                | Operator::new(Rule::le, Assoc::Left)
+                | Operator::new(Rule::gt, Assoc::Left)
+                | Operator::new(Rule::lt, Assoc::Left),
+            Operator::new(Rule::add, Assoc::Left) | Operator::new(Rule::sub, Assoc::Left),
+            Operator::new(Rule::mul, Assoc::Left) | Operator::new(Rule::div, Assoc::Left),
+        ]);
 
-                        // try to parse expression atom
-                        let atom = if let Some(atom) = <Option<ObjectExpr>>::parse_many(&mut pairs)?
-                        {
-                            Expr::Object(atom)
-                        } else if let Some(atom) = <Option<ArrayExpr>>::parse_many(&mut pairs)? {
-                            Expr::Array(atom)
-                        } else if let Some(atom) = <Option<Block>>::parse_many(&mut pairs)? {
-                            Expr::Block(Box::new(atom))
-                        } else if let Some(atom) = <Option<StringExpr>>::parse_many(&mut pairs)? {
-                            Expr::String(atom)
-                        } else if let Some(atom) = <Option<NumberExpr>>::parse_many(&mut pairs)? {
-                            Expr::Number(atom)
-                        } else if let Some(atom) = <Option<Ident>>::parse_many(&mut pairs)? {
-                            Expr::Ident(atom)
-                        } else {
-                            unreachable!("rule {:?}", pairs.peek().as_ref().map(Pair::as_rule))
-                        };
+        prec_climber.climb(
+            pair.into_inner(),
+            |pair| match pair.as_rule() {
+                Rule::expr_call => {
+                    let mut pairs = pair.into_inner();
 
-                        // parse arguments
-                        let arg_lists: Vec<ArgList> = Node::parse_many(&mut pairs)?;
-                        helpers::check_end(pairs)?;
+                    // try to parse expression atom
+                    let atom = if let Some(atom) = <Option<ObjectExpr>>::parse_many(&mut pairs)? {
+                        Expr::Object(atom)
+                    } else if let Some(atom) = <Option<ArrayExpr>>::parse_many(&mut pairs)? {
+                        Expr::Array(atom)
+                    } else if let Some(atom) = <Option<Block>>::parse_many(&mut pairs)? {
+                        Expr::Block(Box::new(atom))
+                    } else if let Some(atom) = <Option<StringExpr>>::parse_many(&mut pairs)? {
+                        Expr::String(atom)
+                    } else if let Some(atom) = <Option<NumberExpr>>::parse_many(&mut pairs)? {
+                        Expr::Number(atom)
+                    } else if let Some(atom) = <Option<Ident>>::parse_many(&mut pairs)? {
+                        Expr::Ident(atom)
+                    } else {
+                        unreachable!("rule {:?}", pairs.peek().as_ref().map(Pair::as_rule))
+                    };
 
-                        let mut expr = atom;
-                        for arg_list in arg_lists {
-                            expr = Expr::Call(Box::new(expr), arg_list);
-                        }
+                    // parse arguments
+                    let arg_lists: Vec<ArgList> = Node::parse_many(&mut pairs)?;
+                    helpers::check_end(pairs)?;
 
-                        Ok(expr)
+                    let mut expr = atom;
+                    for arg_list in arg_lists {
+                        expr = Expr::Call(Box::new(expr), arg_list);
                     }
 
-                    rule @ _ => unreachable!("rule {:?}", rule),
-                },
-                |lhs, op, rhs| Ok(Expr::BinOp(Box::new(lhs?), Op::parse(op)?, Box::new(rhs?))),
-            )
-        })
+                    Ok(expr)
+                }
+
+                rule @ _ => unreachable!("rule {:?}", rule),
+            },
+            |lhs, op, rhs| Ok(Expr::BinOp(Box::new(lhs?), Op::parse(op)?, Box::new(rhs?))),
+        )
     }
 }
 

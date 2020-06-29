@@ -11,11 +11,9 @@ macro_rules! node {
             }
 
             fn parse(pair: $crate::ast::Pair<Rule>) -> $crate::error::ParseResult<Self> {
-                $crate::ast::helpers::log_call::<Self, _, _>("parse", move || {
-                    $crate::ast::helpers::check_rule(&pair, &$rule)?;
-                    let value = pair.as_str().to_string();
-                    Ok(Self { value })
-                })
+                $crate::ast::helpers::check_rule(&pair, &$rule)?;
+                let value = pair.as_str().to_string();
+                Ok(Self { value })
             }
         }
     };
@@ -38,15 +36,13 @@ macro_rules! node {
             }
 
             fn parse(pair: $crate::ast::Pair<Rule>) -> $crate::error::ParseResult<Self> {
-                $crate::ast::helpers::log_call::<Self, _, _>("parse", move || {
-                    $crate::ast::helpers::check_rule(&pair, &$rule)?;
-                    let mut pairs = pair.into_inner();
+                $crate::ast::helpers::check_rule(&pair, &$rule)?;
+                let mut pairs = pair.into_inner();
 
-                    Ok(Self {
-                        $(
-                            $field: node!(@parse_many $(#[$meta])* (pairs))?
-                        ),*
-                    })
+                Ok(Self {
+                    $(
+                        $field: node!(@parse_many $(#[$meta])* (pairs))?
+                    ),*
                 })
             }
         }
@@ -70,19 +66,17 @@ macro_rules! node {
             }
 
             fn parse(pair: $crate::ast::Pair<Rule>) -> $crate::error::ParseResult<Self> {
-                $crate::ast::helpers::log_call::<Self, _, _>("parse", move || {
-                    $crate::ast::helpers::check_rule(&pair, &$rule)?;
+                $crate::ast::helpers::check_rule(&pair, &$rule)?;
 
-                    let inner = $crate::ast::helpers::into_single(pair.into_inner())?;
-                    $(
-                        if <$variant_type as $crate::ast::Node>::can_parse(&inner.as_rule()) {
-                            node!(@parse $(#[$meta])* (inner)).map(Self::$variant)
-                        } else
-                    )*
-                    {
-                        unreachable!("rule {:?}", inner.as_rule())
-                    }
-                })
+                let inner = $crate::ast::helpers::into_single(pair.into_inner())?;
+                $(
+                    if <$variant_type as $crate::ast::Node>::can_parse(&inner.as_rule()) {
+                        node!(@parse $(#[$meta])* (inner)).map(Self::$variant)
+                    } else
+                )*
+                {
+                    unreachable!("rule {:?}", inner.as_rule())
+                }
             }
         }
     };
