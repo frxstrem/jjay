@@ -18,6 +18,9 @@ impl Scope {
 
     pub fn new_default() -> ScriptResult<Scope> {
         let scope = Scope::new_empty()
+            .set("true", Value::Boolean(true))?
+            .set("false", Value::Boolean(false))?
+            .set("null", Value::Null)?
             .set("/pipe", Function::new2(default_fns::pipe))?
             .set("/add", Function::new2(default_fns::add))?
             .set("/sub", Function::new2(default_fns::sub))?
