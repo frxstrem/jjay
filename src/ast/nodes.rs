@@ -4,7 +4,9 @@ use std::collections::BTreeMap;
 use super::{Node, Rule};
 use crate::ast::helpers;
 use crate::error::*;
-use crate::eval::{Evaluate, Function, Scope, Value};
+use crate::eval::Evaluate;
+use crate::scope::Scope;
+use crate::value::{Function, Value};
 
 node! {
     struct Script = Rule::script {

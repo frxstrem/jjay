@@ -1,8 +1,12 @@
+mod func;
+
 use std::collections::BTreeMap;
 use std::fmt::{self, Debug, Display};
 
-use super::{Function, Scope};
 use crate::error::*;
+use crate::scope::Scope;
+
+pub use func::Function;
 
 #[derive(Clone, Debug)]
 pub enum Value {

@@ -6,12 +6,14 @@ pub mod error;
 
 mod ast;
 mod eval;
+mod scope;
+mod value;
 
 use crate::eval::Evaluate;
 
 pub use crate::error::*;
-pub use crate::eval::Scope;
-pub use crate::eval::Value;
+pub use crate::scope::Scope;
+pub use crate::value::Value;
 
 pub fn run_script(source: impl AsRef<str>) -> ScriptResult<Value> {
     let scope = Scope::new_default();

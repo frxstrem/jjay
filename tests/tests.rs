@@ -38,6 +38,7 @@ make_test!(array_str_access: r#"[10, 11, 12]["1"]"# => "11");
 make_fail_test!(null_no_propagate_through_var: "let x = null?; x.y");
 make_fail_test!(null_no_propagate_through_block: "(null?).y");
 make_fail_test!(null_no_propagate_through_func: "let f() = null?; f().y");
+make_fail_test!(null_no_propagate_through_arg: "let f(x) = x.y; f(null?)");
 make_test!(lambda_function1: "(x => x + x)(3)" => "6");
 make_test!(lambda_function2: "(x => y => x + y)(3)(4)" => "7");
 make_test!(empty_lambda: "(_ => x)" => "null");

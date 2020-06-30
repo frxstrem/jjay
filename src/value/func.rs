@@ -1,9 +1,11 @@
 use std::fmt::{self, Debug};
 use std::sync::Arc;
 
-use super::{Evaluate, Scope, Value};
 use crate::ast::{Expr, FnArg};
 use crate::error::*;
+use crate::eval::Evaluate;
+use crate::scope::Scope;
+use crate::value::Value;
 
 #[derive(Clone, Debug)]
 pub enum Function {

@@ -1,7 +1,7 @@
 use std::fmt::{self, Display};
 
 use crate::ast::Rule;
-use crate::eval::ValueType;
+use crate::value::ValueType;
 
 pub type ParseResult<T> = Result<T, ParseError>;
 

@@ -1,12 +1,6 @@
-mod func;
-mod scope;
-mod value;
-
 use crate::error::*;
-
-pub use self::func::Function;
-pub use self::scope::*;
-pub use self::value::*;
+use crate::scope::Scope;
+use crate::value::Value;
 
 pub trait Evaluate {
     fn evaluate(&self, scope: Scope) -> ScriptResult<(Scope, Value)>;
